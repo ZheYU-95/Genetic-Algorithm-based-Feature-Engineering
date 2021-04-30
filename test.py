@@ -1,5 +1,5 @@
-# %%
 from math import inf
+from dask.base import compute
 from numpy.core.numeric import NaN
 from pandas.core.frame import DataFrame
 from transforms import LinearRegressorTransform, RandomForestClassifierTransform
@@ -9,7 +9,7 @@ import copy
 import random 
 import sys
 import logging, coloredlogs
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSearchCV
 import transforms as tf
 import tribes_competition as tc
 import dask.array as da
@@ -17,312 +17,128 @@ import dask.dataframe as dd
 import dask.bag as db
 from dask import delayed
 from dask.distributed import LocalCluster, Client
-
-logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-coloredlogs.install(level = 'DEBUG')
-logger_new = logging.getLogger(__name__)
-
-
-
-
-
-
-
-""" dates = pd.date_range('20210101', periods=6)
-df = pd.DataFrame(np.random.randn(6, 4), index=dates, columns=list('ABCD'))
-df = df.drop('C', axis=1, inplace=False)
-df1 = pd.DataFrame(np.random.randn(6, 2), index=dates, columns=list('EF')) """
-
-# df2 = pd.DataFrame(df.iloc[:, :-1])
-# df1 = pd.DataFrame(np.random.randn(6, 6), index=dates, columns=list('ABCDEF'))
-# df2[df1.columns[-1]] = df1.iloc[:, -1]
-# print(pd.concat([df1, df2], axis=1, ignore_index=True))
-
-
-
-# label = df.iloc[:, -1].value_counts().index[0]
-# print(df.reset_index().iloc[:, 1:])
-# print(df.reset_index(drop=False))
-
-from dask import compute
-import tc_distributed as tcd
-import transforms_distributed as tfd
-import dask.bag as db
-una_oprs = tfd.unary_operators
-bina_oprs = tfd.binary_operators
-oprs_list = [una_oprs, bina_oprs]
-
-
-
-# dataset = 'data/php0iVrYT.csv'
-# dat = tcd.load_data(dataset, art='C')
-
-
-# seq = dat.columns
-# b = db.from_sequence(dat[s] for s in seq)
-# b.map(lambda x: np.log(x))
-# print(b.compute())
-# gps = tcd.tribesCompetition(dat)
-# cand_d = delayed(tcd.plunge_eliminate)(dat, gps)
-# print(compute(cand_d))
-# nxt_g = tcd.generateCandidates(dat)
-# print(nxt_g)
-# print(lis)
-# print(compute(lis))
-
-# %%
-a = np.array(['abba' for _ in range(186043)], dtype=object)
-a.nbytes / (1024 ** 2)
-
-
-# %%
-# 导入数据：这里刚读入的数据里都有第一列的一列索引，要把他删除掉
-cur_dat = pd.read_csv('result/curr_php0iVrYT.csv')
-cur_dat.drop(cur_dat.columns[0], axis=1, inplace=True)
-cur_gen = pd.DataFrame(cur_dat.iloc[:, :-1], columns=cur_dat.columns[:-1])
-print(cur_gen.shape)
-# print(cur_gen)
-prev_dat = pd.read_csv('result/prev_php0iVrYT.csv')
-prev_gen = prev_dat.drop(prev_dat.columns[0], axis=1, inplace=False)
-print(prev_gen.shape)
-# print(prev_gen)
-# cur_gen.to_csv('t.csv', mode='a', header=False)
-
-
-
-# %%
-# 通过调用操作符生成子代特征
-cands_bag = tcd.new_cands(cur_gen, prev_gen=prev_gen)
-cands_bag = compute(compute(cands_bag)[0])[0]
-print(cands_bag)
-
-# cands_bag = compute(cands_bag)[0]
-# lis = []
-# for i in range(21):
-#      result = cands_bag[i].compute()
-#      lis.append(result)
-#      print("res for %s opr" %(str(i+1)))
-#      # print(result)
-# print(lis)
-
-
-
-# cands_bag = compute(cands_bag.compute())[0]
-
-# %%
-#清洗子代特征
-""" cands_lis = []
-for cand in cands_bag:
-    cand = delayed(tcd.clean_dat)(cand)
-    cands_lis.append(cand)
-cands_lis = compute(cands_lis)[0]
-cands_lis """
-
-# %%
-#改写eval函数
-""" cands_lis = copy.deepcopy(cands_bag)
-cand = cands_lis[-4]
-lis1 = ['1', '2']
-lis2 = ['3', '4']
-lis3 = ['5', '6']
-lis = [lis1, lis2, lis3]
-scores = []
-for i in range(3):
-     d = delayed(train_test_split)(cand, cur_dat.iloc[:, -1])
-     s = tcd.eval(d)
-     scores.append(s)
-     lis[i].append(s)
-# print(scores)
-mean_s = sum(scores)/3
-mean_s = compute(mean_s)[0]
-print(mean_s)
-print(lis)
-print(compute(lis)[0])
-res = sorted(compute(lis)[0], key=lambda x: x[-1], reverse=False)
-print(res) """
-
-# %%
-""" cand_dat = copy.deepcopy(cand)
-cand_dat[cur_dat.columns[-1]] = cur_dat.iloc[:, -1]
-sorted_gps = tcd.tribesCompetition(cand_dat)
-# print(compute(sorted_gps[-1][:-1])[0])
-cand_d = delayed(tcd.plunge_eliminate)(cand_dat, sorted_gps)
-cand_d = compute(cand_d)[0]
-print(cand_d) """
-
-# %%
-""" cnt = 1
-res_lis = []
-for cand in cands_lis:
-     if cand.empty:
-          continue
-     cand_dat = copy.deepcopy(cand)
-     cand_dat[cur_dat.columns[-1]] = cur_dat.iloc[:, -1]
-     # tC 返回的结果是delayed格式的
-     sorted_gps = tcd.tribesCompetition(cand_dat)
-     # sorted_gps = compute(sorted_gps)[0]
-     cand_d = delayed(tcd.plunge_eliminate)(cand_dat, sorted_gps)
-     res_lis.append(cand_d)
-     cnt += 1
-res_lis = compute(res_lis)[0] """
-
-
-
-
-
-
-""" candidates_list = []
-# cands_bag = tcd.new_cands(dat, prev_gen)
-# print(compute(compute(cands_bag)[0])[0])
-for oprs in oprs_list:
-     for opr in oprs.values():
-          candidates = None
-          if oprs == oprs_list[0]:
-               candidates = delayed(opr()._exec)(cur_gen)
-          elif oprs == oprs_list[1]:
-               candidates = delayed(opr()._exec)(cur_gen, prev_gen)
-          candidates_list.append(candidates)
-          # candidates_list.append(candidates.compute())
-print(candidates_list[-1].compute())
-# print(compute(candidates_list)[0]) """
-
-
-
-
-
-
-
-
-""" # dat = tc.load_data(dataset, art='C')
-dat = pd.read_csv(dataset)
-# dat = tc.clean_dat(dat)
-dat = tc.load_data(dataset, art='C')
-print(dat)
- """
-
-""" dataset = 'data/php0iVrYT.csv'
-dat = tc.load_data(dataset, art='C')
-X_train, X_test, y_train, y_test = train_test_split(
-            dat.iloc[:, :-1], dat.iloc[:, -1])
-# res = tc.eval(X_train, X_test, y_train, y_test)
-
-una_oprs = tf.unary_operators
-bina_oprs = tf.binary_operators
-oprs_list = [una_oprs, bina_oprs]
-cur_gen = pd.DataFrame(dat.iloc[:, :-1], columns=dat.columns[:-1])
-prev_gen = None
-# opr = oprs_list[0].get('adde')
-opr = oprs_list[1].get('div')
-for i in range(3):
-     # candidates = opr()._exec(cur_gen)
-     candidates = opr()._exec(cur_gen, prev_gen)
-     # print(candidates)
-     candidates[dat.columns[-1]] = dat.iloc[:, -1]
-     lis = tc.tribesCompetition(candidates)
-     candidates = tc.plunge_eliminate(candidates, lis)
-     # print(candidates)
-     res_limit = 200
-     res = pd.DataFrame()
-     res = pd.concat([res, candidates], axis=1)
-     res[dat.columns[-1]] = dat.iloc[:, -1]
-     while (res.shape[1] > res_limit):
-          res = tc.feature_selection(res)
-     res = res.iloc[:, :-1]
-     prev_gen = pd.concat([prev_gen, cur_gen], axis=1)
-     print(prev_gen)
-     cur_gen = res
-     print(cur_gen)
-print(prev_gen)
-print(cur_gen) """
-
-# print(np.finfo(np.float32).max)
-
-
-
-
-
-
-
-
-
-
-
-
-""" df2 = pd.DataFrame({'age': [5, pd.NaT, np.NaN],
-                   'born': [pd.NaT, pd.Timestamp('1939-05-27'), pd.Timestamp('1940-04-25')],
-                   'name': ['Alfred', 'Batman', np.inf],
-                   'toy': [None, 'Batmobile', 'Joker']})
-# print(df2.loc[:, df2.isna().sum()/3 < .5])
-print(df2)
-print((df2.iloc[:, 0].isna()).any()) """
-
-
-
-""" 
+import tc_distributed_pro as tcdp
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-x = RandomForestRegressor()
-y = x
-if 1 > 0:
-     x = RandomForestClassifier()
-print(x)
-print(y) 
-"""
-
-""" a = np.array([9, 4, 4, 3, 3, 9, 0, 4, 6, 0])
-k = 4
-ind = np.argpartition(a, -k)[-k:] """
-# print(df['A'].all()!=0)
-# df = df.loc[:, (df != df.iloc[0]).any()]
-# df = df.iloc[0]
-# print((df != df.iloc[0]).any())  # anys() indicating whether any element is True
-# print(df.columns)
-# print(df.isna().sum().sum())
-# print(df.columns)
-# print(df)
-
-# lis = [[1,2,3], [4,5,6,2], [7,8,9], [10,11,12,1]]
-# print(lis[0][:-1])
-# lis2 = sorted(lis, key=lambda x: x[-1], reverse=False)
-# print(lis2)
+from boruta import BorutaPy
+import math
+import pathlib
 
 
- 
-
-"""
+logging.basicConfig(level=logging.ERROR)
+# logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger_new = logging.getLogger(__name__)
+output_file_handler = logging.FileHandler("log/baseline.log")
+# output_file_handler = logging.FileHandler("log/R/output_" + dataset[7:-3] + 'log')
+output_file_handler.setFormatter(formatter)
+logger_new.addHandler(output_file_handler)
 coloredlogs.install(level = 'DEBUG')
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+# pathlib.Path(datapath).mkdir(parents=True, exist_ok=True)
 
-logger.info('This is a log info')
-logger.debug('Debugging')
-logger.warning('Warning exists')
-logger.fatal('Fatal')
-logger.info('Finish')
-"""
 
- 
+dataset = 'data/Higgs_Boson.csv'
+datapath = 'result/' + dataset[5:-4]
+dat = tcdp.load_data(dataset, logger=logger_new, art='C')
+prev_dat = pd.read_csv(datapath + '/gen1.csv')
+prev_dat.drop(prev_dat.columns[0], axis=1, inplace=True)
+prev_dat.drop(prev_dat.columns[-1], axis=1, inplace=True)
+cur_dat = pd.read_csv(datapath + '/gen2.csv')
+cur_dat.drop(cur_dat.columns[0], axis=1, inplace=True)
+cur_dat[dat.columns[-1]] = dat.iloc[:, -1]
+total_dat = pd.concat([prev_dat, cur_dat], axis=1)
+total_dat.to_csv(datapath + '/total' + '.csv')
 
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.feature_selection import SelectFromModel
-""" 
-X = [[ 0.87, -1.34,  0.31 ],
-     [-2.79, -0.02, -0.85 ],
-     [-1.34, -0.48, -2.55 ],
-     [ 1.92,  1.48,  0.65 ]]
-y = [0, 1, 0, 1]
-clf = RandomForestRegressor().fit(X, y)
-selector =  SelectFromModel(clf, threshold= 'mean', prefit=True)
-selected = selector.get_support()
-# print(selected)
-df = pd.DataFrame(np.random.randn(len(dates), len(df.loc[:, selected].columns)), index=dates, columns=df.loc[:, selected].columns)
-print(df)
-"""
+""" find the best number of the selected features """
+max_inc, coef1, coef2 = 0, 0, 0
+for i in range(1, 10):
+    i /= 10
+    num_best_features = round(i * total_dat.shape[1])
+    best_features_cands = tcdp.bestFeatures(total_dat, num_best_features, art='C')
+    for j in range(1, 10):
+        j /= 10
+        size_limit = round(j * dat.shape[1])
+        best_features = pd.DataFrame(best_features_cands)
+        best_features[total_dat.columns[-1]] = total_dat.iloc[:, -1]
+        while best_features.shape[1] > size_limit:
+            best_features = tcdp.featureSelection(best_features, art='C')
+        best_features.drop(best_features.columns[-1], axis=1, inplace=True)
+        init_fitness, cur_fitness = tcdp.scoreCompare(dat, best_features, art='C')
+        increase = (cur_fitness - init_fitness) / init_fitness
+        if increase > max_inc:
+            max_inc, coef1, coef2 = increase, i, j
+logger_new.info("After grid search of best coeffs, with coef1: %f coef2: %f, the increase maximized by %f" %(coef1, coef2, max_inc))
 
-import gopup as gp
-""" 
-df_index = gp.marco_cmlrd()
-# print(df_index)
-df_index.to_excel("中国杠杆率.xlsx") 
-"""
+# dat = tcdp.load_data('data/SpectF.csv')
+# total_dat = pd.read_csv('result/SpectF/total.csv')
+# total_dat.drop(total_dat.columns[0], axis=1, inplace=True)
+# # Select best K features from the total candidate features
+# # num_best_features = round(3 * dat.shape[1])
+# num_best_features = round(0.3 * total_dat.shape[1])
+# best_features_cands = tcdp.bestFeatures(total_dat, num_best_features, art='C', logger=logger_new)
+# logger_new.info("Finish selecting best %d features according to their importance in the first round coarsely" %(num_best_features))
+# init_fitness, cur_fitness = tcdp.scoreCompare(dat, best_features_cands, art='C', logger=logger_new)
+# logger_new.debug("Compared with the initial one, the fitness increased by %s" %(str((cur_fitness-init_fitness)/init_fitness)))
 
-# %%
+
+# reduce the features number on the basis of a higher score compared to the initial one
+# size_limit = 2 * dat.shape[1]
+# print("The limit of the final gen's size is %d" %(size_limit))
+# best_features = pd.DataFrame(best_features_cands)
+# best_features[total_dat.columns[-1]] = total_dat.iloc[:, -1]
+# while best_features.shape[1] > size_limit:
+#     best_features = tcdp.featureSelection(best_features, art='C', logger=logger_new)
+# best_features.drop(best_features.columns[-1], axis=1, inplace=True)
+# logger_new.info("Reduce the size of the final selected features to %d by featureSelection while keeping score not dropping" %(best_features.shape[1]))
+# best_features.to_csv('result/SpectF/final' + '.csv')
+
+# init_fitness, cur_fitness = tcdp.scoreCompare(dat, best_features, art='C', logger=logger_new)
+# increase = (cur_fitness - init_fitness) / init_fitness
+# logger_new.debug("Compared with the initial one, the fitness increased by %s" %(str(increase)))
+
+
+
+
+
+
+""" calculate initial baseline scores """
+datasets = ['data/Higgs_Boson.csv']
+# datasets = ['data/Higgs_Boson.csv', 'data/Amazon_employee_access.csv', 'data/SpectF.csv', 'data/German_Credit.csv', 
+          #   'data/AP_Omentum_Ovary.csv', 'data/Lymphography.csv', 'data/Ionosphere_cleaned.csv', 'data/messidor_features.csv', 
+          #   'data/winequality_red.csv', 'data/winequality_white.csv']
+# datasets = ['data/R/Housing_Boston.csv', 'data/R/Openml_618.csv', 'data/R/Openml_589.csv', 'data/R/Openml_616.csv', 
+#            'data/R/Openml_607.csv', 'data/R/Openml_620.csv', 'data/R/Openml_637.csv', 'data/R/Openml_586.csv']
+
+# for dataset in datasets:
+#      dat = tcdp.load_data(dataset, art='C')
+#      group = dat.drop(dat.columns[-1], axis=1, inplace=False)
+#      datapath = 'result/' + dataset[5:-4]
+#      # datapath = 'result/R' + dataset[7:-4]
+#      res = tcdp.calculateFitness(dat, group, art='C')
+#      res, v = compute(res)[0]
+#      logger_new.info("For dataset %s, mean score is %f, standard variance is %f" %(str(dataset[5:-4]), res, v))
+
+
+
+
+
+""" tune parameters of RF """
+# dat = tcdp.load_data('data/Higgs_Boson.csv')
+# X = dat.iloc[:, :-1]
+# y = dat.iloc[:, -1]
+# param_test1 = {'n_estimators':range(10,201,10)}
+# gsearch1 = GridSearchCV(estimator=RandomForestClassifier(random_state=10, n_jobs=-1),
+#                         param_grid=param_test1, scoring='f1_weighted',cv=5)
+# gsearch1.fit(X,y)
+# print(gsearch1.cv_results_['mean_test_score'], gsearch1.cv_results_['params'])
+
+# param_test2 = {'max_depth':range(10,201,10), 'min_samples_split':range(10,201,10)}
+# gsearch2 = RandomizedSearchCV(estimator=RandomForestClassifier(n_estimators= 200, random_state=10, n_jobs=-1),
+#                         param_distributions=param_test2, scoring='f1_weighted', cv=5)
+# gsearch2.fit(X,y)
+# print(gsearch2.cv_results_['mean_test_score'], gsearch2.cv_results_['params'])
+
+# param_test3 = {'min_samples_split':range(20,120,10), 'min_samples_leaf':range(10,60,10)}
+# gsearch3 = RandomizedSearchCV(estimator=RandomForestClassifier(n_estimators= 30, max_depth=50, random_state=10, n_jobs=-1),
+#                         param_distributions=param_test3, scoring='f1_weighted', cv=5)
+# gsearch3.fit(X,y)
+# print(gsearch3.cv_results_['mean_test_score'], gsearch3.cv_results_['params'])

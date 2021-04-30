@@ -5,7 +5,6 @@ from numpy.core.numeric import NaN
 
 from numpy.ma.core import append, reshape
 from torch.utils import data
-from state import State
 import copy
 
 import math

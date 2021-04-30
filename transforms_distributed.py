@@ -4,8 +4,6 @@ import traceback
 from numpy.core.numeric import NaN
 
 from numpy.ma.core import append, reshape
-from torch.utils import data
-from state import State
 import copy
 
 import math
@@ -42,9 +40,7 @@ from sklearn.preprocessing import OneHotEncoder, LabelEncoder, StandardScaler, M
 from sklearn.svm import SVR, SVC, LinearSVC, LinearSVR
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 import xgboost as xgb
-import dask.array as da
-import dask.bag as db
-import dask.dataframe as dd
+
 from dask import delayed, compute
 
 
@@ -1162,7 +1158,7 @@ class NominalExpansion(Transform):
                 stack_trace.append(
                     "File : %s , Line : %d, Func.Name : %s, Message : %s" % (trace[0], trace[1], trace[2], trace[3]))
             print('Error appear:')
-            print(State.get_state()) 
+            # print(State.get_state()) 
             self.logger.error(e, exc_info=True)
             print("Stack trace : %s" % stack_trace)
             return X_train, X_test
@@ -1931,6 +1927,10 @@ unary_operators = {'abs':Abs, 'adde':Adde, 'cos':Cos, 'degree':Degree, 'exp':Exp
                    'tanh':Tanh, 'relu':Relu, 'mmnorm':Minmaxnorm, 'zscore':Zscore, 'kernelapproxrbf':KernelApproxRBF}
 
 binary_operators = {'div':Div, 'minus':Minus, 'add':Add, 'product':Product}
+
+operators_names = ['abs', 'adde', 'cos', 'degree', 'exp', 'ln', 'negative', 'radian', 'reciprocal', 
+                   'sin', 'sigmoid', 'square', 'tanh', 'relu', 'mmnorm', 'zscore', 'kernelapproxrbf', 
+                   'div', 'minus', 'add', 'product']
 
 ctype_operators = {'timeagg':Timeagg, 'p25':Percentile25, 'p50':Percentile50, 'p75':Percentile75, 
                     'max':Maximum, 'min':Minimum, 'autoencoder':Autoencoder}

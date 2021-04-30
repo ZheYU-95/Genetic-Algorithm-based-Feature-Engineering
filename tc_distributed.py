@@ -459,8 +459,6 @@ def feature_selection(dat: pd.DataFrame, art='C', logger=None) -> pd.DataFrame()
         logging.basicConfig(
             level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         logger = logging.getLogger(__name__)
-    prev_limit = 2000
-    logger.info('The number of columns exceed max number(%d), try columns selection first' % (prev_limit))
 
     # feature selection
     if art == 'C':
@@ -468,6 +466,7 @@ def feature_selection(dat: pd.DataFrame, art='C', logger=None) -> pd.DataFrame()
     else:
         model = RandomForestRegressor()
     clf = model.fit(dat.iloc[:, :-1], dat.iloc[:, -1])
+    # Meta-transformer for selecting features based on importance weights.
     fs = SelectFromModel(clf, threshold='mean', prefit=True)
     supp = fs.get_support()
     df = pd.DataFrame(fs.transform(dat.iloc[:, :-1]), 
@@ -553,6 +552,7 @@ def getNextGen(cur_dat: pd.DataFrame, prev_gen: pd.DataFrame = None, art='C', lo
     cur_limit = 200
     res[cur_dat.columns[-1]] = cur_dat.iloc[:, -1]
     while (res.shape[1] > cur_limit):
+        logger.info('The number of current_gen columns %d exceed cur_limit %d, columns selection first' % (res.shape[1], cur_limit))
         res = feature_selection(res, art=art, logger=logger)
     res.drop(res.columns[-1], axis=1, inplace=True)
     logger.debug('Remaining children candidates now are under limit')
@@ -578,6 +578,7 @@ def update_dat(dat: pd.DataFrame, prev_gen: pd.DataFrame=None, art='C', logger=N
     prev_gen = pd.concat([prev_gen, cur_gen], axis=1)
     prev_gen[dat.columns[-1]] = dat.iloc[:, -1]
     while prev_gen.shape[1] > prev_limit:
+        logger.info('The number of prev_gen columns %d exceed prev_limit %d, columns selection first' % (prev_gen.shape[1], prev_limit))
         prev_gen = feature_selection(prev_gen, art=art, logger=logger)
     prev_gen.drop(prev_gen.columns[-1], axis=1, inplace=True)
     
