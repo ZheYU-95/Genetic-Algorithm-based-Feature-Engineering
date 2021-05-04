@@ -366,6 +366,8 @@ class Sigmoid(Transform):
                 cols.append(str(i) + '_sigmoid')
                 d.append(delayed(lambda x: 1 / (1 + np.exp(-x)))(dat[i]))
         d = compute(d)[0]
+        if not d:
+            return pd.DataFrame()
         d = np.transpose(np.array(d, dtype='float32'))
         res = pd.DataFrame(d, columns=cols)
         return res

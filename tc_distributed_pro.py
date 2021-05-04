@@ -459,8 +459,9 @@ def plungeInnerTribe(dat: pd.DataFrame, sorted_gps: list, art='C', logger=None):
         not_best = compute(sorted_gps[i][:-1])[0]
         gp_not_best = pd.DataFrame(dat[not_best])
         gp_not_best[dat.columns[-1]] = dat.iloc[:, -1]
-        init_score = compute(innerCompetition(gp_b, groups_num=2, art=art, logger=logger)[-1][-1])[0][0]
-        group = plunge(gp_not_best, gp_b, init_score, art=art, logger=logger)
+        # init_score = compute(innerCompetition(group, groups_num=2, art=art, logger=logger)[-1][-1])[0][0]
+        init_score = compute(eval(group.iloc[:, :-1], group.iloc[:, -1], art=art, logger=logger))[0][0]
+        group = plunge(gp_not_best, group, init_score, art=art, logger=logger)
     logger.info('Finish plunging inner a tribe.')
     return group
 
@@ -541,9 +542,7 @@ def featureSelection(dat: pd.DataFrame, art='C', logger=None) -> pd.DataFrame():
         model = RandomForestClassifier(n_estimators= 80, random_state=10, n_jobs=-1)
         # model = ExtraTreesClassifier(n_estimators=100)
     else:
-        model = RandomForestRegressor(n_estimators=100, max_depth=50, min_samples_split=2, 
-                                      min_samples_leaf=1, min_weight_fraction_leaf=0, max_leaf_nodes=None, 
-                                      min_impurity_decrease=1e-7, oob_score=True, n_jobs=-1, random_state=10, class_weight='balanced')
+        model = RandomForestRegressor(n_estimators=100, random_state=10, n_jobs=-1)
         # model = ExtraTreesRegressor(n_estimators=100)
     # fit boruta
     # boruta_selector = BorutaPy(model, n_estimators = 'auto', verbose=0, random_state=1)
