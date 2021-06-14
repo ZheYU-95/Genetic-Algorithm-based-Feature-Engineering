@@ -1,9 +1,13 @@
 Genetic Algorithm based Feature Engineering
+environment: python 3.7
+The main part of this approach based on tc_distributed_pro. 
+We can run fe_distributed.py or fe_distributed.ipynb to execute this approach on different datasets.
 
-data存放 https://www.openml.org/s/218/data 上的数据集；
-log记录每个数据集的运行状态
-result保存运行结束后每个数据集产生的最新一代的特征curr，和所有保存下来的前辈们的特征prev；子文件夹是按照各个数据集的名字，其内部是生成的每一代特征
+data: save datasets from https://www.openml.org/s/218/data
+log: record running states
+result: save the features of each generation and the final features
 
+======================Not necessary for reading================================================================
 一共有两版代码：
 普通版：包含所有操作运算（单目/双目/多目/聚合）的transforms.py, 实现算法的主体部分tribes_competition.py, 运行数据集的主函数feature_engineering.py
 并行版：主要使用了dask.delayed函数，实现并行for循环内部操作，减少运行时间，transforms_distributed.py, tc_distributed.py, fe_distributed.py/.ipynb
@@ -46,12 +50,21 @@ conda create --name=new_env --clone=current_env --copy
 
 
 
-各个超参数一览：
+Hyperparameters
+Classification:
+默认：RandomForestClassifier(n_estimators= 200, random_state=10, n_jobs=-1)
 Higgs_Boson: model = RandomForestClassifier(n_estimators= 200, random_state=10, n_jobs=-1)
-SpectF: model = RandomForestClassifier(n_estimators= 40, max_depth=5, min_samples_split=50, 
-                                           min_samples_leaf=30, random_state=10, n_jobs=-1)
-messidor_features: model = RandomForestClassifier(n_estimators=170, max_sdepth=50, min_samples_split=30, random_state=10, n_jobs=-1)
+SpectF: model = RandomForestClassifier(n_estimators= 40, max_depth=5, min_samples_split=50, min_samples_leaf=30, random_state=10, n_jobs=-1)
+CreditCard_default: model = RandomForestClassifier(n_estimators= 160, min_samples_split=40, max_depth=180, random_state=10, n_jobs=-1)
+messidor_features: model = RandomForestClassifier(n_estimators=170, max_depth=50, min_samples_split=30, random_state=10, n_jobs=-1)
 Ionosphere_cleaned: model = RandomForestClassifier(n_estimators=80, random_state=10, n_jobs=-1)
 Lymphography/winequality_white/winequality_red: model = RandomForestClassifier(n_estimators=150, random_state=10, n_jobs=-1)
 German_Credit: model = RandomForestClassifier(n_estimators= 20, max_depth=100, min_samples_split=100, random_state=10, n_jobs=-1)
+AP_Omentum_Ovary: model = RandomForestClassifier(n_estimators= 10, min_samples_split=140, max_depth=60, random_state=10, n_jobs=-1)
+PimaIndian: model = RandomForestClassifier(n_estimators= 60, min_samples_split=200, max_depth=150, random_state=10, n_jobs=-1)
 
+Regression:
+Housing_Boston: model = RandomForestRegressor(n_estimators= 10, min_samples_split=70, max_depth=20, random_state=10, n_jobs=-1)
+Airfoil: model = RandomForestRegressor(n_estimators= 20, random_state=10, n_jobs=-1)
+Openml_586/589: model = RandomForestRegressor(n_estimators= 20, random_state=10, n_jobs=-1)
+Openml_607/616: model = RandomForestRegressor(n_estimators= 200, random_state=10, n_jobs=-1)
