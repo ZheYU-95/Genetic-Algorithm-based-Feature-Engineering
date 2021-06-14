@@ -184,9 +184,9 @@ def clean_dat(dat: pd.DataFrame, logger=None) -> pd.DataFrame:
 
 
 def subsampling(dat: pd.DataFrame):
-    """ when number of instance too large, only use 10000 data to do the feature engineering """
-    if dat.shape[0] > 10000:
-        return dat.sample(n=10000, random_state=1).reset_index(drop=True)
+    """ when number of instance too large, only use 100000 data to do the feature engineering """
+    if dat.shape[0] > 100000:
+        return dat.sample(n=100000, random_state=1).reset_index(drop=True)
     else:
         return dat
 
@@ -273,7 +273,7 @@ def eval(X: pd.DataFrame, y: pd.DataFrame, art='C', logger=None):
     try:
         if art == 'C':
             #model = SVC()
-            model = RandomForestClassifier(n_estimators= 200, random_state=10, n_jobs=-1)
+            model = RandomForestClassifier(n_estimators=150, random_state=10, n_jobs=-1)
             scores = cross_val_score(model, X, y, cv=5, scoring='f1_weighted')
             # 'roc_auc'
             fitness = scores.mean()
@@ -292,7 +292,7 @@ def eval(X: pd.DataFrame, y: pd.DataFrame, art='C', logger=None):
                 fitness = f1_score(y, predict) """
         else:
             # logger.info('Start to run regression model')
-            model = RandomForestRegressor(n_estimators=100, random_state=10, n_jobs=-1)
+            model = RandomForestRegressor(n_estimators= 150, random_state=10, n_jobs=-1)
             def relative_absolute_error(y_true: pd.Series, y_pred: pd.Series):
                 y_true_mean = y_true.mean()
                 n = len(y_true)
@@ -560,7 +560,7 @@ def featureSelection(dat: pd.DataFrame, art='C', logger=None) -> pd.DataFrame():
     X_filtered = fs.transform(x)
     df = pd.DataFrame(X_filtered, columns=dat.iloc[:, :-1].columns[supp], index=dat.index)
     df['target'] = dat.iloc[:, -1]
-    logger.debug('End with columns selection, number of columns now is: %s' %(str(df.iloc[:, :-1].shape[1])))
+    logger.info('End with columns selection, number of columns now is: %s' %(str(df.iloc[:, :-1].shape[1])))
     return df
 
 

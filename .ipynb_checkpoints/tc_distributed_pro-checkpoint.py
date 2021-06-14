@@ -184,9 +184,9 @@ def clean_dat(dat: pd.DataFrame, logger=None) -> pd.DataFrame:
 
 
 def subsampling(dat: pd.DataFrame):
-    """ when number of instance too large, only use 100000 data to do the feature engineering """
-    if dat.shape[0] > 100000:
-        return dat.sample(n=100000, random_state=1).reset_index(drop=True)
+    """ when number of instance too large, only use 10000 data to do the feature engineering """
+    if dat.shape[0] > 10000:
+        return dat.sample(n=10000, random_state=1).reset_index(drop=True)
     else:
         return dat
 
@@ -251,6 +251,7 @@ def load_data(dataset_name, sep=',', header='infer', index_col=None, logger=None
     return dat
 
 
+@delayed
 def eval(X: pd.DataFrame, y: pd.DataFrame, art='C', logger=None):
     """
     output:
@@ -272,8 +273,9 @@ def eval(X: pd.DataFrame, y: pd.DataFrame, art='C', logger=None):
     try:
         if art == 'C':
             #model = SVC()
-            model = RandomForestClassifier(n_estimators=150, random_state=10, n_jobs=-1)
+            model = RandomForestClassifier(n_estimators=80, random_state=10, n_jobs=-1)
             scores = cross_val_score(model, X, y, cv=5, scoring='f1_weighted')
+            # 'f1_macro'
             # 'roc_auc'
             fitness = scores.mean()
             std_var = np.std(scores)
@@ -291,7 +293,7 @@ def eval(X: pd.DataFrame, y: pd.DataFrame, art='C', logger=None):
                 fitness = f1_score(y, predict) """
         else:
             # logger.info('Start to run regression model')
-            model = RandomForestRegressor(n_estimators= 150, random_state=10, n_jobs=-1)
+            model = RandomForestRegressor(n_estimators=100, random_state=10, n_jobs=-1)
             def relative_absolute_error(y_true: pd.Series, y_pred: pd.Series):
                 y_true_mean = y_true.mean()
                 n = len(y_true)
@@ -366,6 +368,7 @@ def partition(lis: list, n: int):
         return [[lis_cp[i]] for i in range(len(lis))]
 
 
+@delayed
 def innerCompetition(dat: pd.DataFrame, groups_num: int, art='C', logger=None) -> list:
     """ 
     dat: cleaned data after preprocessing, subsampling and balanced-sampling 
@@ -395,7 +398,7 @@ def innerCompetition(dat: pd.DataFrame, groups_num: int, art='C', logger=None) -
         gp.append(score)
         gps_list.append(gp)
     # x: [col1, col2,..., (fitness, variance)]
-    sorted_gps_list = sorted(gps_list, key=lambda x: x[-1][0], reverse=False)
+    sorted_gps_list = sorted(compute(gps_list)[0], key=lambda x: x[-1][0], reverse=False)
     # gp_min = sorted_gps_list[0]
     # gp_max = sorted_gps_list[-1]
     # logger.debug('The groups with the worst %s and best %s performances are found.\t ' % (str(gp_min), str(gp_max)))
@@ -413,18 +416,18 @@ def plunge(weak: pd.DataFrame, strong: pd.DataFrame, init_score, art='C', logger
     
     # magic_number: groups_num=2
     asc_weak = innerCompetition(weak, groups_num=2, art=art, logger=logger)
-    cols_best_in_w = asc_weak[-1][:-1]
+    cols_best_in_w = compute(asc_weak[-1][:-1])[0]
     best_in_weak = pd.DataFrame(weak.loc[:, cols_best_in_w], columns=cols_best_in_w)
     
     asc_strong = innerCompetition(strong, groups_num=2, art=art, logger=logger)
-    cols_not_worst_in_strong = asc_strong[1:][:-1]
+    cols_not_worst_in_strong = compute(asc_strong[1:][:-1])[0]
     not_worst_in_strong = pd.DataFrame(strong.loc[:, cols_not_worst_in_strong], columns=cols_not_worst_in_strong)
     # cols_worst_in_strong = compute(asc_strong[0][:-1])[0]
     # cols_best_in_strong = compute(asc_strong[-1][:-1])[0]
     new_group = pd.concat([best_in_weak, not_worst_in_strong], axis=1)
     # new_tribe = clean_dat(new_tribe, logger)
-    res = calculateFitness(strong, new_group, art=art, logger=logger)[0]
-    score = res
+    res = calculateFitness(strong, new_group, art=art, logger=logger)
+    score = compute(res)[0][0]
     logger.debug('Finish competition between 2 groups, the better one plunges better part in worse to get better, if possible')
     # logger.debug("init_score: %s" %(str(init_score)))
     if (score > init_score):
@@ -447,18 +450,18 @@ def plungeInnerTribe(dat: pd.DataFrame, sorted_gps: list, art='C', logger=None):
         logger = logging.getLogger(__name__)
     # logger.debug('Start to plunge and eliminate groups')
     # excluding the label column in list element firstly
-    best = sorted_gps[-1][:-1]
+    best = compute(sorted_gps[-1][:-1])[0]
     gp_b = pd.DataFrame(dat[best])
     gp_b[dat.columns[-1]] = dat.iloc[:, -1]
     # magic_number: search_range
     search_range = min(20, round(len(sorted_gps)/2))
     group = pd.DataFrame(gp_b)
     for i in range(-2, -search_range, -1):
-        not_best = sorted_gps[i][:-1]
+        not_best = compute(sorted_gps[i][:-1])[0]
         gp_not_best = pd.DataFrame(dat[not_best])
         gp_not_best[dat.columns[-1]] = dat.iloc[:, -1]
         # init_score = compute(innerCompetition(group, groups_num=2, art=art, logger=logger)[-1][-1])[0][0]
-        init_score = eval(group.iloc[:, :-1], group.iloc[:, -1], art=art, logger=logger)[0]
+        init_score = compute(eval(group.iloc[:, :-1], group.iloc[:, -1], art=art, logger=logger))[0][0]
         group = plunge(gp_not_best, group, init_score, art=art, logger=logger)
     logger.info('Finish plunging inner a tribe.')
     return group
@@ -479,7 +482,7 @@ def interTribesCompetition(dat: pd.DataFrame, tribes_list: list, art='C', logger
         score = calculateFitness(dat, tribe, art=art, logger=logger)
         oprs_scores.append([idx, score])
         idx += 1
-    asc_rank = sorted(oprs_scores, key=lambda x: x[1][0], reverse=False)
+    asc_rank = sorted(compute(oprs_scores)[0], key=lambda x: x[1][0], reverse=False)
     logger.debug('Finish competitions inter tribes and according to their fitness update their weights')
     return asc_rank
 
@@ -513,7 +516,7 @@ def plungeInterTribes(dat: pd.DataFrame, tribes_list: list, oprs_ranks: list, op
         strong_tribe[dat.columns[-1]] = dat.iloc[:, -1]
         
         init_score = oprs_ranks[right][1][0]
-        tribe = plunge(weak_tribe, strong_tribe, init_score, art=art, logger=None)
+        tribe = delayed(plunge)(weak_tribe, strong_tribe, init_score, art=art, logger=None)
         final_tribes_list.append(tribe)
         left += 1
         right -= 1
@@ -558,7 +561,7 @@ def featureSelection(dat: pd.DataFrame, art='C', logger=None) -> pd.DataFrame():
     X_filtered = fs.transform(x)
     df = pd.DataFrame(X_filtered, columns=dat.iloc[:, :-1].columns[supp], index=dat.index)
     df['target'] = dat.iloc[:, -1]
-    logger.info('End with columns selection, number of columns now is: %s' %(str(df.iloc[:, :-1].shape[1])))
+    logger.debug('End with columns selection, number of columns now is: %s' %(str(df.iloc[:, :-1].shape[1])))
     return df
 
 
@@ -582,20 +585,18 @@ def newCandidates(cur_dat: pd.DataFrame, prev_gen: pd.DataFrame, oprs_weights=No
     
     cur_gen = pd.DataFrame(cur_dat.iloc[:, :-1], columns=cur_dat.columns[:-1])
     candidates_list = []
-    i = 1
     for operator in oprs_list:
         candidates = None
         if operator in una_oprs.keys():
             opr = una_oprs[operator]
-            candidates = opr()._exec(cur_gen)
+            candidates = delayed(opr()._exec)(cur_gen)
         elif operator in bina_oprs.keys():
             opr = bina_oprs[operator]
-            candidates = opr()._exec(cur_gen, prev_gen)
+            candidates = delayed(opr()._exec)(cur_gen, prev_gen)
         candidates_list.append(candidates)
-        logger.info('Generate new children candidates for operator %s' %(str(i)))
-        i += 1
-    logger.debug('Successfully generate %d new children features candidates' %(len(candidates_list)))
-    return candidates_list
+    cands_bag = db.from_sequence(candidates_list, partition_size=None, npartitions=None)
+    logger.debug('Successfully generate new children features candidates')
+    return cands_bag
 
 
 def getNextGeneration(cur_dat: pd.DataFrame, prev_gen: pd.DataFrame=None, oprs_weights=None, art='C', logger=None) -> pd.DataFrame():
@@ -609,12 +610,14 @@ def getNextGeneration(cur_dat: pd.DataFrame, prev_gen: pd.DataFrame=None, oprs_w
         logger = logging.getLogger(__name__)
     
     cands_bag = newCandidates(cur_dat, prev_gen=prev_gen, oprs_weights=oprs_weights, logger=logger)
+    cands_bag = compute(compute(cands_bag)[0])[0]
     logger.debug('Finish computing children candidates in getNextGen')
     
     cands_lis = []
     for cand in cands_bag:
-        cand = clean_dat(cand, logger)
+        cand = delayed(clean_dat)(cand, logger)
         cands_lis.append(cand)
+    cands_lis = compute(cands_lis)[0]
     logger.debug('Finish Data Cleaning after new_cands function in getNextGen')
     
     cnt = 1
@@ -629,10 +632,11 @@ def getNextGeneration(cur_dat: pd.DataFrame, prev_gen: pd.DataFrame=None, oprs_w
         """ How many groups should be splitted? It should match the expansion of data with O(n^2) """
         gp_num = round(math.sqrt(cand_dat.shape[1]))
         sorted_gps = innerCompetition(cand_dat, groups_num=gp_num, art=art, logger=logger)
-        cand_d = plungeInnerTribe(cand_dat, sorted_gps, art=art, logger=logger)
+        cand_d = delayed(plungeInnerTribe)(cand_dat, sorted_gps, art=art, logger=logger)
         res_lis.append(cand_d)
         logger.info('Successfully plunge&eliminate after tribesCompet. the candidates for the %sth operator' %(str(cnt)))
         cnt += 1
+    res_lis = compute(res_lis)[0]
     # res_tup = compute(res_lis)
     # res_lis = res_tup[0]
     logger.debug('Here remain the children surviving from Competion and Elimination')
@@ -640,6 +644,7 @@ def getNextGeneration(cur_dat: pd.DataFrame, prev_gen: pd.DataFrame=None, oprs_w
     # inter tribes competition and update the weight of each opr
     ranks = interTribesCompetition(cur_dat, res_lis, art=art, logger=logger)
     final_lis =  plungeInterTribes(cur_dat, res_lis, ranks, oprs_weights, art=art, logger=logger)
+    final_lis = compute(final_lis)[0]
     
     res = pd.DataFrame()
     for cand_d in final_lis:
